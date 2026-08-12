@@ -1,12 +1,12 @@
--- Tải thư viện Rayfield
+-- ==========================================
+-- TUẤN THỢ SĂN - ULTIMATE VIP HUB (BẢN DYNAMIC SCAN CLEAN)
+-- ==========================================
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 -- Tự động dọn dẹp file key cũ để luôn yêu cầu nhập lại từ đầu
 if isfolder(".") then
     for _, file in ipairs(listfiles(".")) do
-        if file:find("TuansKeySystem") then
-            pcall(function() delfile(file) end)
-        end
+        if file:find("TuansKeySystem") then pcall(function() delfile(file) end) end
     end
 end
 
@@ -77,17 +77,152 @@ local Window = Rayfield:CreateWindow({
 })
 
 local MainTab = Window:CreateTab("Chức năng chính", 4483362458) 
+local PickupTab = Window:CreateTab("🧲 Auto Lụm Đồ", 4483362458) 
 local PlayerTab = Window:CreateTab("Nhân vật & Người chơi", 4483362458) 
 local ConfigTab = Window:CreateTab("Cấu hình (Config)", 4483362458) 
 
--- ==========================================
--- TAB 1: CHỨC NĂNG CHÍNH (AUTO BID & TELE)
--- ==========================================
-MainTab:CreateSection("Auto Tính Năng")
+-- Biến cấu hình chung
 local autoBid = false
 local bidSpeed = 0.7 
-MainTab:CreateToggle({Name = "Auto Bid (Đấu Giá)", CurrentValue = false, Flag = "Toggle_AutoBid", Callback = function(Value) autoBid = Value if autoBid then task.spawn(function() local BidEvent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Auction"):WaitForChild("Bid") while autoBid do pcall(function() BidEvent:FireServer() end) task.wait(bidSpeed) end end) end end})
-MainTab:CreateDropdown({Name = "Tốc độ Bid (Cooldown)", Options = {"Normal (0.7s)", "Fast (0.3s)", "The Flash (0.1s)"}, CurrentOption = {"Normal (0.7s)"}, MultipleOptions = false, Flag = "Dropdown_BidSpeed", Callback = function(Option) local choice = Option[1] if choice == "Normal (0.7s)" then bidSpeed = 0.7 elseif choice == "Fast (0.3s)" then bidSpeed = 0.3 elseif choice == "The Flash (0.1s)" then bidSpeed = 0.1 end end})
+local autoTeleportAfterWin = false
+local bypassEnabled = false
+local auraEnabled = false
+local auraRadius = 15
+local isWeightExceeded = false
+
+-- Lắng nghe sự kiện quá tải trọng xe/kho
+local WeightEvent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("UI"):WaitForChild("VehicleWeightUpdate")
+WeightEvent.OnClientEvent:Connect(function(currentWeight, maxWeight)
+    if currentWeight and maxWeight and currentWeight > maxWeight then
+        isWeightExceeded = true
+    else
+        isWeightExceeded = false
+    end
+end)
+
+-- ==========================================
+-- TAB 1: CHỨC NĂNG CHÍNH (ĐẤU GIÁ & BẢN ĐỒ)
+-- ==========================================
+MainTab:CreateSection("Auto Đấu Giá & Kho")
+
+MainTab:CreateToggle({
+    Name = "Bật Auto Bid (Đấu Giá)", 
+    CurrentValue = false, 
+    Flag = "Toggle_AutoBid", 
+    Callback = function(Value) 
+        autoBid = Value 
+        if autoBid then 
+            task.spawn(function() 
+                local BidEvent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Auction"):WaitForChild("Bid") 
+                while autoBid do pcall(function() BidEvent:FireServer() end) task.wait(bidSpeed) end 
+            end) 
+        end 
+    end
+})
+
+MainTab:CreateDropdown({
+    Name = "Tốc độ Bid (Cooldown)", 
+    Options = {"Normal (0.7s)", "Fast (0.3s)", "The Flash (0.1s)"}, 
+    CurrentOption = {"Normal (0.7s)"}, 
+    MultipleOptions = false, 
+    Flag = "Dropdown_BidSpeed", 
+    Callback = function(Option) 
+        local choice = Option[1] 
+        if choice == "Normal (0.7s)" then bidSpeed = 0.7 elseif choice == "Fast (0.3s)" then bidSpeed = 0.3 elseif choice == "The Flash (0.1s)" then bidSpeed = 0.1 end 
+    end
+})
+
+MainTab:CreateToggle({
+   Name = "🚀 Tự động bay vô kho sau khi Bid xong",
+   CurrentValue = false,
+   Flag = "Toggle_TeleVaoKho",
+   Callback = function(Value) autoTeleportAfterWin = Value end,
+})
+
+-- Chuỗi hành động tự động khi thắng đấu giá (Dynamic Scan Loop cho đến khi Clean)
+local PickupEvent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Auction"):WaitForChild("AuctionPickupStart")
+PickupEvent.OnClientEvent:Connect(function()
+    if autoTeleportAfterWin then
+        task.wait(0.5)
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+        
+        local savedOriginalPosition = hrp.CFrame
+        local closestItem = nil
+        local shortestDistance = math.huge
+        local cachedPrompts = {}
+        
+        for _, prompt in pairs(workspace:GetDescendants()) do
+            if prompt:IsA("ProximityPrompt") then
+                table.insert(cachedPrompts, prompt)
+                local itemPart = prompt.Parent
+                if itemPart and itemPart:IsA("BasePart") then
+                    local distance = (itemPart.Position - hrp.Position).Magnitude
+                    if distance < shortestDistance then 
+                        shortestDistance = distance 
+                        closestItem = itemPart 
+                    end
+                end
+            end
+        end
+        
+        if closestItem then
+            hrp.CFrame = CFrame.new(closestItem.Position + Vector3.new(0, 3, 0)) 
+            Rayfield:Notify({Title = "Đột nhập", Content = "Đã vào kho thành công!", Duration = 1.5})
+            
+            isWeightExceeded = false
+            
+            if auraEnabled then
+                task.wait(0.5)
+                local clean = false
+                local safeguard = 0
+                
+                -- Vòng lặp Scan liên tục cho đến khi hoàn toàn sạch (clean) hoặc kho đầy
+                while not clean and safeguard < 20 and not isWeightExceeded do
+                    safeguard = safeguard + 1
+                    local itemsProcessed = 0
+                    
+                    for _, prompt in ipairs(cachedPrompts) do
+                        if isWeightExceeded then break end
+                        
+                        if prompt and prompt.Parent then
+                            local itemPart = prompt.Parent
+                            if itemPart and itemPart.Parent then
+                                local itemPos = itemPart:IsA("BasePart") and itemPart.Position or (itemPart:IsA("Model") and itemPart.PrimaryPart and itemPart.PrimaryPart.Position)
+                                
+                                if itemPos then
+                                    local dist = (itemPos - hrp.Position).Magnitude
+                                    if dist <= auraRadius then
+                                        pcall(function() fireproximityprompt(prompt) end)
+                                        itemsProcessed = itemsProcessed + 1
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    
+                    -- Nếu vòng quét này không tìm/xử lý thêm được món nào nữa -> Đã Clean!
+                    if itemsProcessed == 0 then
+                        clean = true
+                    else
+                        task.wait(0.3) -- Nghỉ ngắn trước khi sang lượt scan tiếp theo
+                    end
+                end
+                
+                if isWeightExceeded then
+                    Rayfield:Notify({Title = "Kho đầy!", Content = "Đã đạt giới hạn cân nặng, dừng lụm!", Duration = 2})
+                else
+                    Rayfield:Notify({Title = "Thu hoạch", Content = "Đã dọn sạch kho hoàn toàn (Clean)!", Duration = 1.5})
+                end
+            end
+            
+            task.wait(0.5)
+            hrp.CFrame = savedOriginalPosition
+            Rayfield:Notify({Title = "Trở về", Content = "Đã bay về vị trí đấu giá!", Duration = 2})
+        end
+    end
+end)
 
 MainTab:CreateSection("Khu vực Cá nhân")
 MainTab:CreateButton({Name = "🏠 Dịch chuyển về: " .. LocalPlayer.Name .. " House", Callback = function()
@@ -101,6 +236,222 @@ MainTab:CreateButton({Name = "🏠 Dịch chuyển về: " .. LocalPlayer.Name .
                found = true break
            end
        end
+   end)
+   if not found then Rayfield:Notify({Title = "Lỗi", Content = "Không tìm thấy nhà của bạn trong Server!", Duration = 3}) end
+end})
+
+MainTab:CreateSection("Bản đồ (Bấm nút bay nhiều lần thoải mái)")
+local selectedFav = ""
+local favoriteLocations = {}
+
+MainTab:CreateDropdown({
+   Name = "1. CHỌN ĐỊA ĐIỂM (Ở ĐÂY)",
+   Options = DropdownOptions,
+   CurrentOption = {""},
+   MultipleOptions = false,
+   Flag = "Dropdown_Teleport",
+   Callback = function(Option) selectedFav = Option[1] end,
+})
+
+MainTab:CreateButton({
+   Name = "🚀 2. DỊCH CHUYỂN ĐẾN NƠI ĐÃ CHỌN",
+   Callback = function()
+       if selectedFav == "" then Rayfield:Notify({Title = "Thông báo", Content = "Vui lòng chọn địa điểm trước!", Duration = 2}) return end
+       local engKey = NameToEnglishKey[selectedFav]
+       local targetVector = LocationList[engKey]
+       if targetVector then
+           local char = LocalPlayer.Character
+           if char and char:FindFirstChild("HumanoidRootPart") then
+               char.HumanoidRootPart.CFrame = CFrame.new(targetVector + Vector3.new(0, 3, 0))
+               Rayfield:Notify({Title = "Thành công!", Content = "Đã bay đến: " .. selectedFav, Duration = 2})
+           end
+       end
+   end,
+})
+
+MainTab:CreateButton({
+   Name = "⭐ Thêm / Bỏ Yêu Thích Địa Điểm Này",
+   Callback = function()
+       if selectedFav == "" then return end
+       local idx = table.find(favoriteLocations, selectedFav)
+       if idx then
+           table.remove(favoriteLocations, idx) Rayfield:Notify({Title = "Yêu thích", Content = "Đã XÓA", Duration = 2})
+       else
+           table.insert(favoriteLocations, selectedFav) Rayfield:Notify({Title = "Yêu thích", Content = "Đã THÊM", Duration = 2})
+       end
+   end,
+})
+
+MainTab:CreateSection("Danh sách Yêu thích")
+local selectedFavTeleport = ""
+local FavDropdown = MainTab:CreateDropdown({
+   Name = "⭐ Chọn mục yêu thích", Options = {"Chưa có mục yêu thích"}, CurrentOption = {""}, MultipleOptions = false, Flag = "Dropdown_Favorites", Callback = function(Option) selectedFavTeleport = Option[1] end,
+})
+
+MainTab:CreateButton({
+   Name = "🚀 DỊCH CHUYỂN (MỤC YÊU THÍCH)",
+   Callback = function()
+       if selectedFavTeleport == "" or selectedFavTeleport == "Chưa có mục yêu thích" then return end
+       local targetVector = LocationList[NameToEnglishKey[selectedFavTeleport]]
+       if targetVector then LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(targetVector + Vector3.new(0, 3, 0)) end
+   end,
+})
+
+MainTab:CreateButton({
+   Name = "🔄 Làm mới danh sách Yêu Thích",
+   Callback = function()
+       if #favoriteLocations > 0 then FavDropdown:Refresh(favoriteLocations, true) else FavDropdown:Refresh({"Chưa có mục yêu thích"}, true) end
+   end,
+})
+
+-- ==========================================
+-- TAB 2: AUTO LỤM ĐỒ (PICKUP & AURA)
+-- ==========================================
+PickupTab:CreateSection("Tùy chỉnh Lụm Đồ")
+
+local function bypassPrompt(prompt)
+    if prompt:IsA("ProximityPrompt") then
+        if not prompt:GetAttribute("OriginalDuration") then prompt:SetAttribute("OriginalDuration", prompt.HoldDuration) end
+        if bypassEnabled then prompt.HoldDuration = 0 else prompt.HoldDuration = prompt:GetAttribute("OriginalDuration") or 1 end
+    end
+end
+
+PickupTab:CreateToggle({
+   Name = "Bật Lụm Nhanh (Chạm 1 cái là lụm, ko cần đè)",
+   CurrentValue = false,
+   Flag = "Toggle_BypassHold",
+   Callback = function(Value)
+       bypassEnabled = Value
+       for _, v in pairs(workspace:GetDescendants()) do bypassPrompt(v) end
+   end,
+})
+
+workspace.DescendantAdded:Connect(function(v)
+    if bypassEnabled then task.spawn(function() task.wait(0.1) bypassPrompt(v) end) end
+end)
+
+PickupTab:CreateSection("Aura Nhặt Đồ Thông Minh")
+
+PickupTab:CreateToggle({
+   Name = "🧲 Kích hoạt Aura dọn kho (Scan liên tục đến khi Clean)",
+   CurrentValue = false,
+   Flag = "Toggle_Aura",
+   Callback = function(Value) 
+       auraEnabled = Value 
+   end,
+})
+
+PickupTab:CreateSlider({
+   Name = "Bán kính hút đồ (Radius)", Range = {5, 50}, Increment = 1, Suffix = "Studs", CurrentValue = 15, Flag = "Slider_AuraRadius",
+   Callback = function(Value) auraRadius = Value end,
+})
+
+-- ==========================================
+-- TAB 3: NHÂN VẬT & NGƯỜI CHƠI
+-- ==========================================
+PlayerTab:CreateSection("Tùy chỉnh Nhân vật")
+local walkSpeedEnabled = false
+local walkSpeedValue = 16
+PlayerTab:CreateToggle({Name = "Bật Chạy Nhanh", CurrentValue = false, Flag = "Toggle_Speed", Callback = function(Value) walkSpeedEnabled = Value end})
+PlayerTab:CreateSlider({Name = "Điều chỉnh Tốc độ chạy", Range = {16, 300}, Increment = 1, Suffix = "Speed", CurrentValue = 50, Flag = "Slider_Speed", Callback = function(Value) walkSpeedValue = Value end})
+RunService.RenderStepped:Connect(function() if walkSpeedEnabled then local char = LocalPlayer.Character local hum = char and char:FindFirstChild("Humanoid") if hum then hum.WalkSpeed = walkSpeedValue end end end)
+
+local flyEnabled = false
+local flySpeed = 50
+PlayerTab:CreateToggle({Name = "Bật Bay (Fly - Dùng WASD + Space)", CurrentValue = false, Flag = "Toggle_Fly", Callback = function(Value) flyEnabled = Value end})
+PlayerTab:CreateSlider({Name = "Điều chỉnh Tốc độ Bay", Range = {20, 500}, Increment = 1, Suffix = "Fly Speed", CurrentValue = 50, Flag = "Slider_FlySpeed", Callback = function(Value) flySpeed = Value end})
+RunService.RenderStepped:Connect(function()
+    local char = LocalPlayer.Character local hrp = char and char:FindFirstChild("HumanoidRootPart") local hum = char and char:FindFirstChild("Humanoid")
+    if not hrp or not hum then return end
+    if flyEnabled then
+        if not hrp:FindFirstChild("FlyVelocity") then
+            local bv = Instance.new("BodyVelocity") bv.Name = "FlyVelocity" bv.MaxForce = Vector3.new(9e9, 9e9, 9e9) bv.Velocity = Vector3.zero bv.Parent = hrp
+            local bg = Instance.new("BodyGyro") bg.Name = "FlyGyro" bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9) bg.P = 9e4 bg.CFrame = hrp.CFrame bg.Parent = hrp
+            hum.PlatformStand = true
+        end
+        local bv = hrp:FindFirstChild("FlyVelocity") local bg = hrp:FindFirstChild("FlyGyro") local cam = workspace.CurrentCamera
+        if bv and bg and cam then
+            local moveDir = Vector3.zero
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then moveDir = moveDir - Vector3.new(0, 1, 0) end
+            bv.Velocity = moveDir * flySpeed bg.CFrame = cam.CFrame
+        end
+    else
+        if hrp:FindFirstChild("FlyVelocity") then hrp.FlyVelocity:Destroy() end
+        if hrp:FindFirstChild("FlyGyro") then hrp.FlyGyro:Destroy() end
+        if hum then hum.PlatformStand = false end
+    end
+end)
+
+PlayerTab:CreateSection("Người chơi trong Server")
+local selectedPlayer = ""
+local PlayerDropdown = PlayerTab:CreateDropdown({Name = "1. CHỌN NGƯỜI CHƠI", Options = {"Chưa tải danh sách..."}, CurrentOption = {""}, MultipleOptions = false, Flag = "Dropdown_TeleportPlayer", Callback = function(Option) selectedPlayer = Option[1] end})
+PlayerTab:CreateButton({Name = "🚀 2. DỊCH CHUYỂN TỚI NGƯỜI NÀY", Callback = function()
+   if selectedPlayer == "" or selectedPlayer == "Chưa tải danh sách..." then return end
+   local targetPlayer = Players:FindFirstChild(selectedPlayer)
+   if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then LocalPlayer.Character.HumanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame end
+end})
+PlayerTab:CreateButton({Name = "🔄 Làm mới danh sách Người chơi", Callback = function()
+   local pList = {} for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer then table.insert(pList, p.Name) end end
+   if #pList > 0 then PlayerDropdown:Refresh(pList, true) else Rayfield:Notify({Title = "Thông báo", Content = "Bạn đang ở một mình trong Server!", Duration = 2}) end
+end})
+
+-- ==========================================
+-- TAB 4: QUẢN LÝ CẤU HÌNH (CONFIG SYSTEM)
+-- ==========================================
+ConfigTab:CreateSection("Quản lý File Config")
+
+if not isfolder("UltimateFarmHub") then makefolder("UltimateFarmHub") end
+if not isfolder("UltimateFarmHub/Autoload") then makefolder("UltimateFarmHub/Autoload") end
+
+local configFileName = "my_config"
+ConfigTab:CreateInput({Name = "Đặt tên Config", PlaceholderText = "Nhập tên file...", RemoveTextAfterFocusLost = false, Flag = "Input_ConfigName", Callback = function(Text) if Text ~= "" then configFileName = Text end end})
+
+local function getConfigFiles()
+    local files = {}
+    if isfolder("UltimateFarmHub") then for _, file in ipairs(listfiles("UltimateFarmHub")) do local name = file:match("([^/]+)$") name = name:match("(.+)%..+$") or name if name ~= "Autoload" then table.insert(files, name) end end end
+    if #files == 0 then table.insert(files, "Trống") end return files
+end
+
+local selectedConfigToLoad = ""
+local ConfigDropdown = ConfigTab:CreateDropdown({Name = "Chọn File Config có sẵn", Options = getConfigFiles(), CurrentOption = {"Trống"}, MultipleOptions = false, Flag = "Dropdown_Configs", Callback = function(Option) selectedConfigToLoad = Option[1] end})
+ConfigTab:CreateButton({Name = "🔄 Làm mới danh sách File", Callback = function() ConfigDropdown:Refresh(getConfigFiles(), true) end})
+ConfigTab:CreateButton({Name = "➕ Tạo Config Mới", Callback = function()
+   local path = "UltimateFarmHub/" .. configFileName .. ".json"
+   if isfile(path) then Rayfield:Notify({Title = "Lỗi", Content = "File này đã tồn tại!", Duration = 3}) else
+       local data = {Favorites = favoriteLocations, Speed = walkSpeedValue, FlySpeed = flySpeed}
+       writefile(path, HttpService:JSONEncode(data)) Rayfield:Notify({Title = "Thành công", Content = "Đã tạo config", Duration = 2}) ConfigDropdown:Refresh(getConfigFiles(), true)
+   end
+end})
+ConfigTab:CreateButton({Name = "💾 Ghi Đè (Đè dữ liệu vào file đang chọn)", Callback = function()
+   local targetFile = (selectedConfigToLoad ~= "" and selectedConfigToLoad ~= "Trống") and selectedConfigToLoad or configFileName
+   local path = "UltimateFarmHub/" .. targetFile .. ".json"
+   local data = {Favorites = favoriteLocations, Speed = walkSpeedValue, FlySpeed = flySpeed}
+   writefile(path, HttpService:JSONEncode(data)) Rayfield:Notify({Title = "Thành công", Content = "Đã ghi đè", Duration = 2})
+end})
+ConfigTab:CreateButton({Name = "🗑️ Xóa Config Đang Chọn", Callback = function()
+   if selectedConfigToLoad == "" or selectedConfigToLoad == "Trống" then return end
+   local path = "UltimateFarmHub/" .. selectedConfigToLoad .. ".json"
+   if isfile(path) then delfile(path) local autoPath = "UltimateFarmHub/Autoload/" .. selectedConfigToLoad .. ".lua" if isfile(autoPath) then delfile(autoPath) end ConfigDropdown:Refresh(getConfigFiles(), true) end
+end})
+
+ConfigTab:CreateSection("Tự động thực thi (Auto Execute)")
+ConfigTab:CreateButton({Name = "⚡ Bật Auto Execute cho File Này", Callback = function()
+   if selectedConfigToLoad == "" or selectedConfigToLoad == "Trống" then Rayfield:Notify({Title = "Lỗi", Content = "Vui lòng chọn file trong danh sách!", Duration = 3}) return end
+   local scriptContent = '-- Auto Execute generated by Tuấn Thợ Săn\ntask.spawn(function()\n    pcall(function()\n        print("Tuấn Thợ Săn: Loaded Config: ' .. selectedConfigToLoad .. '")\n    end)\nend)'
+   local autoPath = "UltimateFarmHub/Autoload/" .. selectedConfigToLoad .. ".lua"
+   writefile(autoPath, scriptContent)
+   Rayfield:Notify({Title = "Thành công", Content = "Đã bật Auto Execute", Duration = 3})
+end})
+ConfigTab:CreateButton({Name = "❌ Tắt Auto Execute của File Này", Callback = function()
+   if selectedConfigToLoad == "" or selectedConfigToLoad == "Trống" then return end
+   local autoPath = "UltimateFarmHub/Autoload/" .. selectedConfigToLoad .. ".lua"
+   if isfile(autoPath) then delfile(autoPath) Rayfield:Notify({Title = "Thành công", Content = "Đã tắt Auto Execute", Duration = 3}) end
+end})
    end)
    if not found then Rayfield:Notify({Title = "Lỗi", Content = "Không tìm thấy nhà của bạn trong Server!", Duration = 3}) end
 end})
