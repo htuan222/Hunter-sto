@@ -1,9 +1,9 @@
 -- ==========================================
--- TUẤN THỢ SĂN - ULTIMATE VIP HUB (BẢN DYNAMIC SCAN CLEAN)
+-- TUẤN THỢ SĂN - ULTIMATE VIP HUB (BẢN FIX LỖI)
 -- ==========================================
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
--- Tự động dọn dẹp file key cũ để luôn yêu cầu nhập lại từ đầu
+-- Dọn file key cũ
 if isfolder(".") then
     for _, file in ipairs(listfiles(".")) do
         if file:find("TuansKeySystem") then pcall(function() delfile(file) end) end
@@ -18,55 +18,16 @@ local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
 -- ==========================================
--- 1. THIẾT LẬP DỮ LIỆU BẢN ĐỒ
--- ==========================================
-local LocationList = {
-    ["Junk Yard"] = Vector3.new(19.876174926758, 1719.7297363281, -24.290977478027),
-    ["Back Alley"] = Vector3.new(-571.18017578125, 1719.3342285156, -399.95452880859),
-    ["Farmyard"] = Vector3.new(-89.327423095703, 1720.2707519531, -1153.0178222656),
-    ["Shipyard"] = Vector3.new(-550.99005126953, 1719.4323730469, 698.22430419922),
-    ["Shopping Mall"] = Vector3.new(346.7200012207, 1719.3807373047, -172.73672485352),
-    ["Lucky Beach"] = Vector3.new(-222.60774230957, 1686.7734375, -1784.8059082031),
-    ["Power Plant"] = Vector3.new(-2115.6499023438, 1719.0513916016, -955.83801269531),
-    ["Car Shop"] = Vector3.new(-222.93823242188, 1721.9176025391, -170.5347442627),
-    ["Museum"] = Vector3.new(506.39321899414, 1725.0548095703, -185.03215026855),
-    ["Authenticator"] = Vector3.new(-677.49078369141, 1723.3251953125, -923.75372314453),
-    ["Club"] = Vector3.new(-693.76568603516, 1721.5576171875, -1020.4771728516),
-    ["Energy Drink Shop"] = Vector3.new(337.17178344727, 1721.9250488281, -7.1113896369934),
-    ["Locksmith"] = Vector3.new(394.72604370117, 1722.1179199219, -22.085414886475),
-    ["Repair Shop"] = Vector3.new(458.13327026367, 1721.919921875, -79.289375305176),
-    ["Car Customisation"] = Vector3.new(-72.562911987305, 1722.0942382812, 237.34637451172),
-    ["Grading Store"] = Vector3.new(336.45843505859, 1721.912109375, -308.212890625),
-    ["Trailer Store"] = Vector3.new(484.9274597168, 1721.3779296875, -1371.8649902344),
-    ["Item Cleaning Services"] = Vector3.new(440.5322265625, 1721.9113769531, -277.263671875),
-    ["Quck Sell Shop"] = Vector3.new(366.48297119141, 1721.9233398438, -21.546489715576),
-    ["Lake"] = Vector3.new(631.587890625, 1713.3345947266, -852.09771728516)
-}
-
-local TranslateMap = {
-    ["Junk Yard"] = "Bãi phế liệu (Junk Yard)", ["Back Alley"] = "Ngõ hẻm (Back Alley)", ["Farmyard"] = "Nông trại (Farmyard)", ["Shipyard"] = "Bến tàu (Shipyard)", ["Shopping Mall"] = "TTTM (Shopping Mall)", ["Lucky Beach"] = "Bãi biển (Lucky Beach)", ["Power Plant"] = "Nhà máy điện (Power Plant)", ["Car Shop"] = "Cửa hàng xe hơi (Car Shop)", ["Museum"] = "Bảo tàng (Museum)", ["Authenticator"] = "Phòng thẩm định (Authenticator)", ["Club"] = "Quán Bar (Club)", ["Energy Drink Shop"] = "Tiệm nước tăng lực (Energy Drink Shop)", ["Locksmith"] = "Thợ khóa (Locksmith)", ["Repair Shop"] = "Tiệm sửa chữa (Repair Shop)", ["Car Customisation"] = "Xưởng độ xe (Car Customisation)", ["Grading Store"] = "Tiệm định giá (Grading Store)", ["Trailer Store"] = "Cửa hàng xe kéo (Trailer Store)", ["Item Cleaning Services"] = "Dịch vụ làm sạch (Cleaning)", ["Quck Sell Shop"] = "Cửa hàng bán nhanh (Quick Sell)", ["Lake"] = "Hồ nước (Lake)"
-}
-
-local DropdownOptions = {}
-local NameToEnglishKey = {}
-for engKey, _ in pairs(LocationList) do 
-    local displayName = TranslateMap[engKey] or engKey
-    table.insert(DropdownOptions, displayName)
-    NameToEnglishKey[displayName] = engKey
-end
-table.sort(DropdownOptions)
-
--- ==========================================
--- 2. TẠO CỬA SỔ GIAO DIỆN (UI)
+-- GIAO DIỆN (UI)
 -- ==========================================
 local Window = Rayfield:CreateWindow({
-   Name = "Tuấn Thợ Săn",
-   LoadingTitle = "Đang xác thực...",
-   LoadingSubtitle = "Vui lòng nhập Key để sử dụng",
+   Name = "Tuấn Thợ Săn - Ultimate VIP",
+   LoadingTitle = "Đang tải hệ thống...",
+   LoadingSubtitle = "Đã fix lỗi hiển thị",
    ConfigurationSaving = { Enabled = false },
    KeySystem = true, 
    KeySettings = {
-      Title = "Nhập Key mới được zo nha mấy em",
+      Title = "Nhập Key",
       Subtitle = "Muốn lấy key thì phải khen bố",
       Note = "Key này đ có save đâu nha mấy em",
       FileName = "TuansKeySystem",
@@ -76,31 +37,80 @@ local Window = Rayfield:CreateWindow({
    }
 })
 
-local MainTab = Window:CreateTab("Chức năng chính", 4483362458) 
+local MainTab = Window:CreateTab("🛒 Chức năng chính", 4483362458) 
 local PickupTab = Window:CreateTab("🧲 Auto Lụm Đồ", 4483362458) 
-local PlayerTab = Window:CreateTab("Nhân vật & Người chơi", 4483362458) 
-local ConfigTab = Window:CreateTab("Cấu hình (Config)", 4483362458) 
 
--- Biến cấu hình chung
+-- Biến logic
 local autoBid = false
-local bidSpeed = 0.7 
 local autoTeleportAfterWin = false
 local bypassEnabled = false
 local auraEnabled = false
-local auraRadius = 15
+local auraRadius = 30
 local isWeightExceeded = false
 
--- Lắng nghe sự kiện quá tải trọng xe/kho
-local WeightEvent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("UI"):WaitForChild("VehicleWeightUpdate")
-WeightEvent.OnClientEvent:Connect(function(currentWeight, maxWeight)
-    if currentWeight and maxWeight and currentWeight > maxWeight then
-        isWeightExceeded = true
-    else
-        isWeightExceeded = false
+-- Monitor Weight
+ReplicatedStorage:WaitForChild("Events"):WaitForChild("UI"):WaitForChild("VehicleWeightUpdate").OnClientEvent:Connect(function(cur, max) isWeightExceeded = (cur > max) end)
+
+-- ==========================================
+-- AUTO BID
+-- ==========================================
+MainTab:CreateSection("Đấu Giá")
+MainTab:CreateToggle({Name = "Bật Auto Bid", CurrentValue = false, Callback = function(V) autoBid = V if autoBid then task.spawn(function() while autoBid do pcall(function() ReplicatedStorage.Events.Auction.Bid:FireServer() end) task.wait(0.7) end end) end end})
+MainTab:CreateToggle({Name = "🚀 Bay vô kho sau khi thắng", CurrentValue = false, Callback = function(V) autoTeleportAfterWin = V end})
+
+-- Logic xử lý kho
+ReplicatedStorage:WaitForChild("Events"):WaitForChild("Auction"):WaitForChild("AuctionPickupStart").OnClientEvent:Connect(function()
+    if autoTeleportAfterWin then
+        task.wait(0.5)
+        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+        local savedPos = hrp.CFrame
+        local prompts, totalPos = {}, Vector3.zero
+        
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") then
+                table.insert(prompts, obj)
+                local part = obj.Parent
+                if part and part:IsA("BasePart") then totalPos = totalPos + part.Position end
+            end
+        end
+        
+        if #prompts > 0 then
+            hrp.CFrame = CFrame.new((totalPos / #prompts) + Vector3.new(0, 3, 0)) 
+            if auraEnabled then
+                task.wait(0.5)
+                local clean = false
+                while not clean and not isWeightExceeded do
+                    local looted = 0
+                    for _, p in ipairs(prompts) do
+                        if isWeightExceeded then break end
+                        if p and p.Parent then
+                            local part = p.Parent
+                            local pos = part:IsA("BasePart") and part.Position or (part:IsA("Model") and part.PrimaryPart and part.PrimaryPart.Position)
+                            if pos and (pos - hrp.Position).Magnitude <= auraRadius then
+                                pcall(function() fireproximityprompt(p) end)
+                                looted = looted + 1
+                            end
+                        end
+                    end
+                    if looted == 0 then clean = true else task.wait(0.3) end
+                end
+            end
+            task.wait(0.5)
+            hrp.CFrame = savedPos
+        end
     end
 end)
 
 -- ==========================================
+-- AUTO LỤM ĐỒ
+-- ==========================================
+PickupTab:CreateSection("Cấu hình Aura")
+PickupTab:CreateToggle({Name = "🧲 Kích hoạt Aura dọn kho", CurrentValue = false, Callback = function(V) auraEnabled = V end})
+PickupTab:CreateSlider({Name = "Bán kính hút (Studs)", Range = {5, 100}, Increment = 5, CurrentValue = 30, Callback = function(V) auraRadius = V end})
+PickupTab:CreateToggle({Name = "Bật Lụm Nhanh (Bypass)", CurrentValue = false, Callback = function(V) bypassEnabled = V for _,p in pairs(workspace:GetDescendants()) do if p:IsA("ProximityPrompt") then p.HoldDuration = V and 0 or (p:GetAttribute("OriginalDuration") or 1) end end end})
+
+Rayfield:Notify({Title = "Tuấn Thợ Săn", Content = "Menu đã sẵn sàng!", Duration = 5})
 -- TAB 1: CHỨC NĂNG CHÍNH (ĐẤU GIÁ & BẢN ĐỒ)
 -- ==========================================
 MainTab:CreateSection("Auto Đấu Giá & Kho")
